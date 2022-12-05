@@ -340,6 +340,7 @@ const VideoPlayer2 = (props: VideoPlayerProps) => {
             onClick={handlePlayPause}
             aria-hidden
             src={srcPoster}
+            alt="Poster Image"
             layout="fill"
           />
         )}
