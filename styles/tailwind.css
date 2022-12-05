@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body,
+html {
+  @apply bg-black text-white;
+  scroll-behavior: smooth;
+}
+
+html {
+  height: 100%;
+}
+body {
+  min-height: 100%;
+  @apply flex flex-col;
+}
+#__next {
+  @apply flex flex-1 flex-col;
+}
+
+*::-webkit-scrollbar-track {
+  @apply bg-gray-900;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  @apply bg-gray-900;
+}
+
+*::-webkit-scrollbar-thumb {
+  @apply bg-gray-600;
+}
