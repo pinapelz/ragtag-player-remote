@@ -28,5 +28,6 @@ export const parseChatReplay = (input: string) => {
   console.log("[chat] using", parser.name);
   const parsed = parser.parse();
   console.log("[chat] found", parsed.length, "messages");
+  console.log(parsed)
   return parsed;
 };

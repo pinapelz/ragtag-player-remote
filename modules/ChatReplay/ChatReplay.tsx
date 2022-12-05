@@ -29,9 +29,10 @@ function bsearch<T>(
 
 const ChatReplay = (props: ChatReplayProps) => {
   const { replayData, currentTimeSeconds } = props;
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([])
 
   React.useEffect(() => {
+    if (!replayData) return;
     /**
      * Find the current replayData index where
      * time_in_seconds <= currentTimeSeconds
