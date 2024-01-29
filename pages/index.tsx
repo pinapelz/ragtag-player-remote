@@ -74,7 +74,13 @@ const CustomPlayerPage = () => {
   return (
     <PageBase>
       <Head>
-        <title>Custom Player - Ragtag Archive</title>
+        {
+          infoJson && infoJson.title ? (
+            <title>{infoJson.title}</title>
+          ) : 
+          <title>a very nice video</title>
+        }
+        
       </Head>
       {showPlayer ? (
         <div className="mt-2">
