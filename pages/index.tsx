@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Head from "next/head";
 import ChatReplayPanel from "../modules/ChatReplay/ChatReplayPanel";
 import { useWindowSize } from "../modules/hooks/useWindowSize";
@@ -6,15 +6,56 @@ import PageBase from "../modules/PageBase";
 import VideoPlayer2 from "../modules/VideoPlayer/VideoPlayer2";
 import { buttonStyle } from "../modules/VideoActionButtons";
 import { IconCheck } from "../modules/icons";
+import { useRouter } from "next/router";
+import Linkify from "linkify-react";
 
 const CustomPlayerPage = () => {
+  const router = useRouter();
   const [isChatVisible, setIsChatVisible] = React.useState(false);
   const { innerWidth, innerHeight } = useWindowSize();
   const [playbackProgress, setPlaybackProgress] = React.useState(0);
   const [urlVideo, setUrlVideo] = React.useState("");
   const [urlChat, setUrlChat] = React.useState("");
   const [urlYtt, setUrlYtt] = React.useState("");
+  const [urlInfoJson, setUrlInfoJson] = React.useState("");
+  const [infoJson, setInfoJson] = React.useState({} as any);
   const [showPlayer, setShowPlayer] = React.useState(false);
+  const { query } = router;
+
+  const videoUrl = query.vid as string;
+  const chatUrl = query.chat as string;
+  const infoJsonUrl = query.info as string;
+  const srv3Url = query.ytt as string;
+
+  if (videoUrl && videoUrl !== urlVideo) {
+    setUrlVideo(videoUrl);
+  }
+  if (chatUrl && chatUrl !== urlChat) {
+    setUrlChat(chatUrl);
+  }
+
+  if (srv3Url && srv3Url !== urlYtt) {
+    setUrlYtt(srv3Url);
+  }
+
+  if (infoJsonUrl && infoJsonUrl !== urlInfoJson) {
+    setUrlInfoJson(infoJsonUrl);
+  }
+
+  if (videoUrl && !showPlayer) {
+    setShowPlayer(true);
+  }
+
+  useEffect(() => {
+    if (urlInfoJson) {
+      fetch(urlInfoJson)
+        .then((res) => res.json())
+        .then((data) => {
+          setInfoJson(data);
+        });
+    }
+  }),
+    [urlChat];
 
   const handleFile = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -36,7 +77,7 @@ const CustomPlayerPage = () => {
         <title>Custom Player - Ragtag Archive</title>
       </Head>
       {showPlayer ? (
-        <div>
+        <div className="mt-2">
           <div
             className={["flex lg:flex-row flex-col lg:h-auto"].join(" ")}
             style={{
@@ -88,13 +129,37 @@ const CustomPlayerPage = () => {
               )}
             </div>
           </div>
-          <button
-            type="button"
-            className={[buttonStyle, "mt-4"].join(" ")}
-            onClick={() => setShowPlayer(false)}
-          >
-            Go back
-          </button>
+          {infoJson && infoJson.description ? (
+            <div className="mt-4 mx-6">
+              <h1 className="text-2xl mb-2">{infoJson.title}</h1>
+              <p className="text-gray-400">
+                {infoJson.view_count.toLocaleString()} views &middot;{" "}
+                {infoJson.upload_date.slice(0, 4) +
+                  "-" +
+                  infoJson.upload_date.slice(4, 6) +
+                  "-" +
+                  infoJson.upload_date.slice(6, 8)}
+              </p>
+              <div className="mt-4 pb-4 border-b border-gray-900">
+                <p className="font-bold text-lg leading-tight mb-4">
+                  {infoJson.uploader}
+                </p>
+                <h3 className="font-bold mb-2">Description</h3>
+                <div className="whitespace-pre-line break-words text-gray-300">
+                  <Linkify>{infoJson.description}</Linkify>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {!videoUrl ? (
+            <button
+              type="button"
+              className={[buttonStyle, "mt-4"].join(" ")}
+              onClick={() => setShowPlayer(false)}
+            >
+              Go back
+            </button>
+          ) : null}
         </div>
       ) : (
         <div>
@@ -164,6 +229,19 @@ const CustomPlayerPage = () => {
                   type="file"
                   className="hidden"
                   onChange={(e) => handleFile(e, setUrlYtt)}
+                />
+              </label>
+              <label
+                className={[buttonStyle, "relative cursor-pointer"].join(" ")}
+              >
+                <span>Select .info.json</span>
+                <span className="ml-auto">
+                  {urlYtt ? <IconCheck width="1em" height="1em" /> : null}
+                </span>
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => handleFile(e, setUrlInfoJson)}
                 />
               </label>
 
