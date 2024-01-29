@@ -19,28 +19,16 @@ const PageBase = (props: PageBaseProps) => {
       >
         {props.children}
       </div>
-      {/* <div className="mt-6 text-gray-500 text-center">
-        Made with 🍝 by{' '}
+      <div className="py-6 text-center">
         <a
-          href="https://twitter.com/kitsune_cw"
-          className="hover:underline"
-          target="_blank"
-          rel="noreferrer noopener nofollow"
-        >
-          kitsune
-        </a>
-        .
-      </div>
-      <div className="mb-6 text-center">
-        <a
-          href="https://gitlab.com/aonahara/archive-browser"
+          href="https://github.com/pinapelz/ragtag-player-remote"
           className="text-gray-500 hover:underline"
           target="_blank"
           rel="noreferrer noopener nofollow"
         >
-          Source code
+          A goofy ahh fork of ragtag-player
         </a>
-      </div> */}
+      </div>
     </div>
   );
 };
