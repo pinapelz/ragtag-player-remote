@@ -17,45 +17,52 @@ const CustomPlayerPage = () => {
   const [urlVideo, setUrlVideo] = React.useState("");
   const [urlChat, setUrlChat] = React.useState("");
   const [urlYtt, setUrlYtt] = React.useState("");
-  const [urlInfoJson, setUrlInfoJson] = React.useState("");
   const [infoJson, setInfoJson] = React.useState({} as any);
   const [showPlayer, setShowPlayer] = React.useState(false);
+  const [dataSet, setDataSet] = React.useState(false);
   const { query } = router;
 
-  const videoUrl = query.vid as string;
-  const chatUrl = query.chat as string;
-  const infoJsonUrl = query.info as string;
-  const srv3Url = query.ytt as string;
-
-  if (videoUrl && videoUrl !== urlVideo) {
-    setUrlVideo(videoUrl);
-  }
-  if (chatUrl && chatUrl !== urlChat) {
-    setUrlChat(chatUrl);
-  }
-
-  if (srv3Url && srv3Url !== urlYtt) {
-    setUrlYtt(srv3Url);
-  }
-
-  if (infoJsonUrl && infoJsonUrl !== urlInfoJson) {
-    setUrlInfoJson(infoJsonUrl);
-  }
-
-  if (videoUrl && !showPlayer) {
-    setShowPlayer(true);
-  }
+  const jsonDataUrl = query.jsonData as string;
+  const timeSeconds = query.time as string;
 
   useEffect(() => {
-    if (urlInfoJson) {
-      fetch(urlInfoJson)
-        .then((res) => res.json())
-        .then((data) => {
-          setInfoJson(data);
-        });
+    if (timeSeconds) {
+      setPlaybackProgress(parseFloat(timeSeconds));
     }
-  }),
-    [urlChat];
+  }, [timeSeconds]);
+
+
+  if(jsonDataUrl && !dataSet) {
+    fetch(jsonDataUrl)
+      .then((res) => res.json())
+      .then((data) => {
+      const { info, video, chat, srv3, ts } = data;
+      if (info) {
+        fetch(info)
+          .then((res) => res.json())
+          .then((data) => {
+            setInfoJson(data);
+          });
+      }
+      if (video) {
+        setUrlVideo(video);
+      }
+      if (chat) {
+        setUrlChat(chat);
+      }
+      if (srv3) {
+        setUrlYtt(srv3);
+      }
+      setDataSet(true);
+      setShowPlayer(true);
+      })
+      .catch((error) => {
+      console.error("Error fetching JSON data:", error);
+      setDataSet(true);
+      setShowPlayer(true);
+      });
+  }
+
 
   const handleFile = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -157,7 +164,7 @@ const CustomPlayerPage = () => {
               </div>
             </div>
           ) : null}
-          {!videoUrl ? (
+          {urlVideo ? (
             <button
               type="button"
               className={[buttonStyle, "mt-4"].join(" ")}
@@ -194,6 +201,10 @@ const CustomPlayerPage = () => {
                 chat-downloader
               </a>
               .
+            </p>
+            <br/>
+            <p className="text-center">
+              This is a specialized version of the player that allows you to pass in a json data file.
             </p>
           </div>
           <div className="mx-auto max-w-md">
@@ -237,24 +248,15 @@ const CustomPlayerPage = () => {
                   onChange={(e) => handleFile(e, setUrlYtt)}
                 />
               </label>
-              <label
-                className={[buttonStyle, "relative cursor-pointer"].join(" ")}
-              >
-                <span>Select .info.json</span>
-                <span className="ml-auto">
-                  {urlYtt ? <IconCheck width="1em" height="1em" /> : null}
-                </span>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => handleFile(e, setUrlInfoJson)}
-                />
-              </label>
 
               <button
                 type="button"
                 className={[buttonStyle, "mt-8 ml-auto"].join(" ")}
-                onClick={() => setShowPlayer(true)}
+                onClick={() => {
+                  setShowPlayer(true);
+                  setDataSet(false);
+
+                }}
               >
                 Launch player
               </button>
