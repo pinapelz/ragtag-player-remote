@@ -19,9 +19,76 @@ import { CaptionsRenderer } from "react-srv3";
 import MediaSync, { MediaSyncRef, MediaSyncState } from "./MediaSync";
 import { NextImage } from "../NextImage";
 
+type CaptionFormat = "srv3" | "srt";
+
 type CaptionsTrack = {
   lang: string;
   src: string;
+  format?: CaptionFormat;
+};
+
+const detectFormat = (src: string): CaptionFormat => {
+  const clean = src.split("?")[0].split("#")[0].toLowerCase();
+  if (clean.endsWith(".srt")) return "srt";
+  if (clean.endsWith(".srv3") || clean.endsWith(".xml")) return "srv3";
+  return "srv3";
+};
+
+const srtToSrv3 = (srt: string): string => {
+  const timestampToMs = (ts: string): number => {
+    // HH:MM:SS,mmm or HH:MM:SS.mmm
+    const m = ts
+      .replace(",", ".")
+      .split(":")
+      .map(Number);
+    let h = 0;
+    let mm = 0;
+    let s = 0;
+    if (m.length === 3) [h, mm, s] = m;
+    else if (m.length === 2) [mm, s] = m;
+    else s = m[0] || 0;
+    return Math.round((h * 3600 + mm * 60 + s) * 1000);
+  };
+
+  const escapeXml = (s: string) =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  const blocks = srt.replace(/\r\n/g, "\n").replace(/^\uFEFF/, "").trim().split(/\n\s*\n/);
+  const entries = blocks
+    .map((block) => {
+      const lines = block.split("\n").filter((l) => l.trim() !== "");
+      if (lines.length < 2) return null;
+      // Drop the numeric index line if present
+      const timingLine = /^\d+$/.test(lines[0].trim()) ? lines[1] : lines[0];
+      const textStart = /^\d+$/.test(lines[0].trim()) ? 2 : 1;
+      const text = lines.slice(textStart).join("\n");
+      const match = timingLine.match(
+        /(\d{1,2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{3})/
+      );
+      if (!match) return null;
+      const start = timestampToMs(match[1]);
+      const end = timestampToMs(match[2]);
+      const dur = Math.max(0, end - start);
+      const body = escapeXml(text);
+      return `<p t="${start}" d="${dur}" wp="1" ws="1" p="1">${body}</p>`;
+    })
+    .filter(Boolean);
+
+  return (
+    `<?xml version="1.0" encoding="utf-8" ?><timedtext format="3">\n` +
+    `<head>\n` +
+    `<pen id="1" fc="#FFFFFF" fo="255" bc="#000000" bo="191" ec="#000000" et="3"/>\n` +
+    `<ws id="1" ju="2"/>\n` +
+    `<wp id="1" ap="7" ah="50" av="100"/>\n` +
+    `</head>\n` +
+    `<body>\n` +
+    entries.join("\n") +
+    `\n</body>\n` +
+    `</timedtext>`
+  );
 };
 
 export type VideoPlayerProps = {
@@ -138,11 +205,12 @@ const VideoPlayer2 = (props: VideoPlayerProps) => {
   };
 
   const nudgeTime = (delta: number) => {
+    if (!refVideo.current) return 0;
     const newTime = Math.max(
       0,
       Math.min(refVideo.current.currentTime + delta, refVideo.current.duration)
     );
-    refVideo.current.currentTime = newTime;
+    refMedia.current?.seek(newTime);
     return newTime;
   };
 
@@ -247,16 +315,19 @@ const VideoPlayer2 = (props: VideoPlayerProps) => {
     }
   }, []);
 
-  const loadCaptions = async (url: string) => {
+  const loadCaptions = async (url: string, format?: CaptionFormat) => {
+    const fmt = format || detectFormat(url);
     await fetch(url)
       .then((res) => res.text())
-      .then((text) =>
-        setSrv3CaptionXMLs((now) => ({ ...now, [activeCaption]: text }))
-      );
+      .then((text) => {
+        const xml = fmt === "srt" ? srtToSrv3(text) : text;
+        setSrv3CaptionXMLs((now) => ({ ...now, [activeCaption]: xml }));
+      });
   };
 
   React.useEffect(() => {
-    if (activeCaption >= 0) loadCaptions(captions[activeCaption].src);
+    if (activeCaption >= 0)
+      loadCaptions(captions[activeCaption].src, captions[activeCaption].format);
   }, [activeCaption]);
 
   const controlsVisible = Date.now() - lastActive < 5000;

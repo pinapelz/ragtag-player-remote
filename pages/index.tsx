@@ -17,12 +17,13 @@ const CustomPlayerPage = () => {
   const [urlVideo, setUrlVideo] = React.useState("");
   const [urlChat, setUrlChat] = React.useState("");
   const [urlYtt, setUrlYtt] = React.useState("");
+  const [captionFormat, setCaptionFormat] = React.useState<"srv3" | "srt" | undefined>(undefined);
   const [infoJson, setInfoJson] = React.useState({} as any);
   const [showPlayer, setShowPlayer] = React.useState(false);
   const [dataSet, setDataSet] = React.useState(false);
   const { query } = router;
 
-  const jsonDataUrl = query.jsonData as string;
+  const jsonDataUrl = query.data as string;
   const timeSeconds = query.time as string;
 
   useEffect(() => {
@@ -36,7 +37,7 @@ const CustomPlayerPage = () => {
     fetch(jsonDataUrl)
       .then((res) => res.json())
       .then((data) => {
-      const { info, video, chat, srv3, ts } = data;
+      const { info, video, chat, srv3, srt, captions } = data;
       if (info) {
         fetch(info)
           .then((res) => res.json())
@@ -52,6 +53,16 @@ const CustomPlayerPage = () => {
       }
       if (srv3) {
         setUrlYtt(srv3);
+        setCaptionFormat("srv3");
+      } else if (srt) {
+        setUrlYtt(srt);
+        setCaptionFormat("srt");
+      } else if (captions) {
+        const cap = Array.isArray(captions) ? captions[0] : captions;
+        if (cap?.src) {
+          setUrlYtt(cap.src);
+          setCaptionFormat(cap.format || (cap.src.toLowerCase().endsWith(".srt") ? "srt" : "srv3"));
+        }
       }
       setDataSet(true);
       setShowPlayer(true);
@@ -66,7 +77,8 @@ const CustomPlayerPage = () => {
 
   const handleFile = (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (newValue: string) => any
+    setter: (newValue: string) => any,
+    opts?: { onFormat?: (format: "srv3" | "srt") => void }
   ) => {
     const file = e.target.files?.[0];
     if (!file) {
@@ -75,6 +87,10 @@ const CustomPlayerPage = () => {
     }
     const url = URL.createObjectURL(file).toString();
     console.log(url);
+    if (opts?.onFormat) {
+      const name = file.name.toLowerCase();
+      opts.onFormat(name.endsWith(".srt") ? "srt" : "srv3");
+    }
     setter(url);
   };
 
@@ -84,10 +100,10 @@ const CustomPlayerPage = () => {
         {
           infoJson && infoJson.title ? (
             <title>{infoJson.title}</title>
-          ) : 
+          ) :
           <title>a very nice video</title>
         }
-        
+
       </Head>
       {showPlayer ? (
         <div className="mt-2">
@@ -114,6 +130,7 @@ const CustomPlayerPage = () => {
                             {
                               lang: "en",
                               src: urlYtt,
+                              format: captionFormat,
                             },
                           ]
                         : undefined
@@ -177,7 +194,7 @@ const CustomPlayerPage = () => {
       ) : (
         <div>
           <div className="px-4 pb-8">
-            <h1 className="text-3xl mt-16 text-center">Custom Video Player</h1>
+            <h1 className="text-3xl mt-16 text-center">Moekyun Video Player</h1>
             <p className="text-lg text-center">
               You can play locally-saved video files and chat replay JSON
             </p>
@@ -238,14 +255,19 @@ const CustomPlayerPage = () => {
               <label
                 className={[buttonStyle, "relative cursor-pointer"].join(" ")}
               >
-                <span>Select captions (srv3)</span>
+                <span>Select captions (srv3 or srt)</span>
                 <span className="ml-auto">
                   {urlYtt ? <IconCheck width="1em" height="1em" /> : null}
                 </span>
                 <input
                   type="file"
+                  accept=".srv3,.xml,.srt"
                   className="hidden"
-                  onChange={(e) => handleFile(e, setUrlYtt)}
+                  onChange={(e) =>
+                    handleFile(e, setUrlYtt, {
+                      onFormat: (fmt) => setCaptionFormat(fmt),
+                    })
+                  }
                 />
               </label>
 
@@ -255,12 +277,29 @@ const CustomPlayerPage = () => {
                 onClick={() => {
                   setShowPlayer(true);
                   setDataSet(false);
-
                 }}
               >
                 Launch player
               </button>
             </form>
+            <div className="mt-6 mx-auto max-w-2xl text-sm text-gray-400 text-left border border-gray-800 rounded p-4">
+              <p className="font-bold text-gray-200 mb-2">JSON data format</p>
+              <p className="mb-2">
+                Pass a URL via the <code>?data=</code> query parameter pointing to a JSON file.
+                All fields are optional. Recognized top-level keys:
+              </p>
+              <ul className="list-disc list-inside space-y-1">
+                <li><code>info</code> - URL to a YouTube <code>info.json</code> (yt-dlp metadata)</li>
+                <li><code>video</code> - URL to the video file/stream</li>
+                <li><code>chat</code> - URL to a chat replay JSON</li>
+                <li><code>srv3</code> - URL to a YouTube srv3 caption XML file</li>
+                <li><code>srt</code> - URL to a SubRip (<code>.srt</code>) subtitle file</li>
+                <li><code>captions</code> - a single object <code>{`{ src, format }`}</code> or an array of them, where <code>format</code> is <code>"srv3"</code> or <code>"srt"</code></li>
+              </ul>
+              <p className="mt-2">
+                Example: <code>{`?data=https://example.com/session.json`}</code>
+              </p>
+            </div>
           </div>
         </div>
       )}
