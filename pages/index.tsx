@@ -21,6 +21,7 @@ const CustomPlayerPage = () => {
   const [infoJson, setInfoJson] = React.useState({} as any);
   const [showPlayer, setShowPlayer] = React.useState(false);
   const [dataSet, setDataSet] = React.useState(false);
+  const [base64Input, setBase64Input] = React.useState("");
   const { query } = router;
 
   const jsonDataUrl = query.data as string;
@@ -33,46 +34,65 @@ const CustomPlayerPage = () => {
   }, [timeSeconds]);
 
 
-  if(jsonDataUrl && !dataSet) {
+  const applyJsonData = (data: any) => {
+    const { info, video, chat, srv3, srt, captions } = data;
+    if (info) {
+      fetch(info)
+        .then((res) => res.json())
+        .then((data) => {
+          setInfoJson(data);
+        });
+    }
+    if (video) {
+      setUrlVideo(video);
+    }
+    if (chat) {
+      setUrlChat(chat);
+    }
+    if (srv3) {
+      setUrlYtt(srv3);
+      setCaptionFormat("srv3");
+    } else if (srt) {
+      setUrlYtt(srt);
+      setCaptionFormat("srt");
+    } else if (captions) {
+      const cap = Array.isArray(captions) ? captions[0] : captions;
+      if (cap?.src) {
+        setUrlYtt(cap.src);
+        setCaptionFormat(cap.format || (cap.src.toLowerCase().endsWith(".srt") ? "srt" : "srv3"));
+      }
+    }
+    setDataSet(true);
+    setShowPlayer(true);
+  };
+
+  if (jsonDataUrl && !dataSet) {
     fetch(jsonDataUrl)
       .then((res) => res.json())
-      .then((data) => {
-      const { info, video, chat, srv3, srt, captions } = data;
-      if (info) {
-        fetch(info)
-          .then((res) => res.json())
-          .then((data) => {
-            setInfoJson(data);
-          });
-      }
-      if (video) {
-        setUrlVideo(video);
-      }
-      if (chat) {
-        setUrlChat(chat);
-      }
-      if (srv3) {
-        setUrlYtt(srv3);
-        setCaptionFormat("srv3");
-      } else if (srt) {
-        setUrlYtt(srt);
-        setCaptionFormat("srt");
-      } else if (captions) {
-        const cap = Array.isArray(captions) ? captions[0] : captions;
-        if (cap?.src) {
-          setUrlYtt(cap.src);
-          setCaptionFormat(cap.format || (cap.src.toLowerCase().endsWith(".srt") ? "srt" : "srv3"));
-        }
-      }
-      setDataSet(true);
-      setShowPlayer(true);
-      })
+      .then((data) => applyJsonData(data))
       .catch((error) => {
-      console.error("Error fetching JSON data:", error);
-      setDataSet(true);
-      setShowPlayer(true);
+        console.error("Error fetching JSON data:", error);
+        setDataSet(true);
+        setShowPlayer(true);
       });
   }
+
+  const handleLoadBase64 = () => {
+    try {
+      let trimmed = base64Input.trim();
+      const base64Match = trimmed.match(/^data:[^;]+;base64,(.*)$/);
+      if (base64Match) {
+        trimmed = base64Match[1];
+      }
+      const jsonStr = atob(trimmed);
+      const data = JSON.parse(jsonStr);
+      applyJsonData(data);
+    } catch (error) {
+      console.error("Error decoding base64 JSON:", error);
+      setDataSet(true);
+      setShowPlayer(true);
+    }
+  };
 
 
   const handleFile = (
@@ -221,7 +241,7 @@ const CustomPlayerPage = () => {
             </p>
             <br/>
             <p className="text-center">
-              This is a specialized version of the player that allows you to pass in a json data file.
+              This is a specialized version of the player that allows you to pass in a JSON data file.
             </p>
           </div>
           <div className="mx-auto max-w-md">
@@ -282,6 +302,24 @@ const CustomPlayerPage = () => {
                 Launch player
               </button>
             </form>
+            <div className="mt-6">
+              <label className="block text-sm text-gray-300 mb-2">
+                Or paste base64-encoded JSON data
+              </label>
+              <textarea
+                className="w-full h-32 p-2 rounded bg-gray-800 text-gray-100 border border-gray-700 text-sm font-mono"
+                placeholder="Paste base64 JSON here..."
+                value={base64Input}
+                onChange={(e) => setBase64Input(e.target.value)}
+              />
+              <button
+                type="button"
+                className={[buttonStyle, "mt-2 ml-auto"].join(" ")}
+                onClick={handleLoadBase64}
+              >
+                Load from base64
+              </button>
+            </div>
             <div className="mt-6 mx-auto max-w-2xl text-sm text-gray-400 text-left border border-gray-800 rounded p-4">
               <p className="font-bold text-gray-200 mb-2">JSON data format</p>
               <p className="mb-2">
@@ -298,6 +336,10 @@ const CustomPlayerPage = () => {
               </ul>
               <p className="mt-2">
                 Example: <code>{`?data=https://example.com/session.json`}</code>
+              </p>
+              <p className="mt-4 mb-1">
+                Alternatively, paste the JSON content as base64 directly into the textarea above
+                (a leading <code>data:...;base64,</code> prefix is optional).
               </p>
             </div>
           </div>
